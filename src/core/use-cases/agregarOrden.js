@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Conexión con Supabase
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '../../infra/supabase/supabaseClient';
 
 /**
  * Agregar una orden a la base de datos

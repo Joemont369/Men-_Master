@@ -1,20 +1,59 @@
 
 const express = require('express');
 const next = require('next');
+const dotenv = require('dotenv');
+
+// Cargar variables de entorno
+dotenv.config();
 
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
+const app = next({ dev, dir: './src' });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
     const server = express();
     
     // API Routes
+    // Obtener órdenes
     server.get('/api/ordenes', async (req, res) => {
         try {
             const { obtenerOrdenes } = require('./src/core/ports/backendAPI');
             const ordenes = await obtenerOrdenes();
             res.json(ordenes);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // Agregar nueva orden
+    server.post('/api/ordenes', express.json(), async (req, res) => {
+        try {
+            const { agregarOrden } = require('./src/core/use-cases/agregarOrden');
+            const resultado = await agregarOrden(req.body);
+            res.json({ success: true, data: resultado });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // API para sincronización del menú temporal
+    server.get('/api/menu-temporal/sync', async (req, res) => {
+        try {
+            const { sincronizarCambiosTemporales } = require('./src/core/use-cases/menu_temporal');
+            const resultado = await sincronizarCambiosTemporales();
+            res.json(resultado);
+        } catch (error) {
+            res.status(500).json({ sincronizado: false, error: error.message });
+        }
+    });
+
+    // API para estadísticas
+    server.get('/api/estadisticas/:periodo', async (req, res) => {
+        try {
+            const { obtenerEstadisticas } = require('./src/core/use-cases/estadisticas');
+            const periodo = req.params.periodo || 'semana';
+            const estadisticas = await obtenerEstadisticas(periodo);
+            res.json(estadisticas);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
