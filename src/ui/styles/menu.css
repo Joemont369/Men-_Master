@@ -1,0 +1,47 @@
+:root {
+  --color-primary: #f5f0d7;
+  --color-accent: #00f7ff;
+  --bg-dark: rgba(0, 0, 0, 0.8);
+  --transition-default: all 0.3s ease;
+}
+
+.menu-container {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  color: var(--color-primary);
+  font-family: 'Montserrat', sans-serif;
+}
+
+.productos button {
+  background: var(--bg-dark);
+  color: var(--color-primary);
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-default);
+}
+
+.productos button:hover {
+  background: var(--color-accent);
+}
+
+.orden, .historial {
+  margin-top: 20px;
+  padding: 15px;
+  background: var(--bg-dark);
+  border-radius: 8px;
+}
+
+.confirmar-btn {
+  background: var(--color-accent);
+  color: black;
+  padding: 10px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-default);
+}
+
+.confirmar-btn:hover {
+  background: var(--color-primary);
+}

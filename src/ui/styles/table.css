@@ -1,0 +1,21 @@
+.table-container {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.table-container th, .table-container td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 2px solid #ddd;
+}
+
+.table-container th {
+  background-color: #00f7ff;
+  color: black;
+  font-weight: bold;
+}
+
+.table-container tr:hover {
+  background-color: rgba(0, 247, 255, 0.3);
+}
