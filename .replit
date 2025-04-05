@@ -1,19 +1,47 @@
-[workflows]
-runButton = "Run Server"
 
-[[workflows.workflow]]
-name = "Run Server"
-author = 41070345
-mode = "sequential"
+entrypoint = "index.js"
+modules = ["nodejs-20:v8-20230920-bd784b9"]
+hidden = [".config", "package-lock.json"]
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm install"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
+[nix]
+channel = "stable-23_05"
 
 [deployment]
-run = ["sh", "-c", "node index.js"]
-build = ["sh", "-c", "npm install && npm run build"]
+run = ["node", "index.js"]
+deploymentTarget = "cloudrun"
+build = ["npm", "install"]
+
+[packager]
+language = "nodejs"
+  [packager.features]
+  packageSearch = true
+  guessImports = true
+  enabledForHosting = false
+
+[unitTest]
+language = "nodejs"
+
+[env]
+SUPABASE_URL = "$SUPABASE_URL"
+SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY"
+
+[languages]
+[languages.javascript]
+pattern = "**/{*.js,*.jsx,*.ts,*.tsx}"
+
+[languages.javascript.languageServer]
+start = "typescript-language-server --stdio"
+
+[languages.css]
+pattern = "**/{*.css}"
+
+[languages.html]
+pattern = "**/{*.html}"
+
+[auth]
+pageEnabled = true
+buttonEnabled = true
+
+[[ports]]
+localPort = 3000
+externalPort = 80

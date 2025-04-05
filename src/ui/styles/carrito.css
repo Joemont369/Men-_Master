@@ -178,6 +178,48 @@
   }
 }
 
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .item-carrito {
   animation: slideFadeIn 0.3s ease-out;
+}
+
+.btn-finalizar:not(:disabled):hover {
+  animation: pulse 0.5s infinite;
+}
+
+.mensaje-confirmacion {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Mejoras para tablets */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .carrito-container {
+    max-width: 400px;
+    position: sticky;
+    top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  
+  .items-lista {
+    max-height: 350px;
+  }
+  
+  .btn-finalizar {
+    padding: 12px;
+    font-size: 1.1rem;
+  }
 }

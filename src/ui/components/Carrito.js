@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { guardarLocal, obtenerLocal } from '../../infra/localstore/storage';
 import { agregarOrden } from '../../core/use-cases/agregarOrden';
+import { sincronizarCambiosTemporales } from '../../core/use-cases/sincronizacion';
 
 const Carrito = ({ items = [], setItems }) => {
   const [total, setTotal] = useState(0);
@@ -66,6 +67,14 @@ const Carrito = ({ items = [], setItems }) => {
     }
 
     setEnviando(true);
+    
+    // Intentar sincronizar antes de enviar la orden
+    try {
+      await sincronizarCambiosTemporales();
+    } catch (error) {
+      console.warn('No se pudo sincronizar antes de enviar la orden:', error);
+      // Continuamos de todos modos
+    }
     try {
       // Preparar datos de la orden
       const orden = {
