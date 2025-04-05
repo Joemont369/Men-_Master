@@ -39,30 +39,91 @@ export async function guardarCambioTemporal(categoria, productoId, cambios) {
                     categoria,
                     producto_id: productoId,
                     cambios: cambioCompleto,
-                    updated_at: new Date().toISOString(),
-                    dispositivo_id: dispositivoId
+                    dispositivo_id: dispositivoId,
+                    updated_at: new Date().toISOString()
                 });
                 
             if (error) throw error;
             
-            return { 
-                success: true, 
-                syncedWithSupabase: true 
-            };
+            // Marcar como sincronizado con Supabase
+            cambioCompleto.sincronizado = true;
+            guardarLocal(claveTemporal, cambioCompleto);
+            
+            return { success: true };
         } catch (error) {
-            console.warn('No se pudo sincronizar con Supabase, guardado localmente:', error);
-            // Si falla, al menos tenemos los cambios en localStorage
+            console.warn('Error al guardar cambio en Supabase:', error);
+            
+            // Marcar como pendiente de sincronización
+            cambioCompleto.sincronizado = false;
+            guardarLocal(claveTemporal, cambioCompleto);
+            
+            // Agregar a la cola de pendientes
+            const cambiosPendientes = obtenerLocal('cambios_pendientes') || [];
+            cambiosPendientes.push({
+                categoria,
+                producto_id: productoId,
+                clave: claveTemporal
+            });
+            guardarLocal('cambios_pendientes', cambiosPendientes);
+            
             return { 
-                success: true, 
-                syncedWithSupabase: false,
-                error: error.message 
+                success: false, 
+                error: error.message,
+                pendiente: true
             };
         }
     } catch (error) {
         console.error('Error al guardar cambio temporal:', error);
-        return { 
-            success: false, 
-            error: error.message 
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Sincronizar todos los cambios pendientes con Supabase
+ * @returns {Promise<Object>} - Resultado de la operación
+ */
+export async function sincronizarTodosLosCambiosTemporales() {
+    try {
+        const cambiosPendientes = obtenerLocal('cambios_pendientes') || [];
+        
+        if (cambiosPendientes.length === 0) {
+            return { 
+                success: true, 
+                mensaje: 'No hay cambios pendientes para sincronizar' 
+            };
+        }
+        
+        // Preparar registros para insertar en lote
+        const registrosParaInsertar = cambiosPendientes.map(({ categoria, producto_id, clave }) => {
+            const cambio = obtenerLocal(clave);
+            return {
+                categoria,
+                producto_id,
+                cambios: cambio,
+                dispositivo_id: cambio.dispositivo_id || obtenerLocal('dispositivo_id'),
+                updated_at: new Date().toISOString()
+            };
+        });
+
+        // Insertar en lote
+        const { error } = await supabase
+            .from('menu_temporal')
+            .upsert(registrosParaInsertar);
+
+        if (error) throw error;
+
+        // Actualizar timestamp del último sync
+        guardarLocal('ultimo_sync_temporal', new Date().toISOString());
+
+        return {
+            success: true,
+            mensaje: `${cambiosPendientes.length} cambios sincronizados`
+        };
+    } catch (error) {
+        console.error('Error al sincronizar todos los cambios temporales:', error);
+        return {
+            success: false,
+            error: error.message
         };
     }
 }
@@ -101,147 +162,70 @@ export async function sincronizarCambiosTemporales() {
                     
                     guardarLocal(claveTemporal, {
                         ...item.cambios,
-                        timestamp: item.updated_at
+                        sincronizado: true
                     });
                     
                     cambiosAplicados++;
                 }
             });
             
-            // Actualiza timestamp del último sync
+            // Actualizar timestamp del último sync
             guardarLocal('ultimo_sync_temporal', new Date().toISOString());
             
-            return {
-                sincronizado: true,
-                cantidadCambios: cambiosAplicados
+            return { 
+                sincronizado: true, 
+                cantidadCambios: cambiosAplicados,
+                mensaje: `${cambiosAplicados} cambios aplicados desde Supabase`
             };
         }
         
-        // No había cambios para sincronizar
-        return {
-            sincronizado: true,
-            cantidadCambios: 0
+        // No hay cambios nuevos
+        return { 
+            sincronizado: true, 
+            cantidadCambios: 0,
+            mensaje: 'No hay cambios nuevos para sincronizar'
         };
     } catch (error) {
-        console.error('Error al sincronizar cambios temporales:', error);
-        return {
-            sincronizado: false,
-            error: error.message
+        console.error('Error al sincronizar cambios de Supabase:', error);
+        return { 
+            sincronizado: false, 
+            error: error.message 
         };
     }
 }
 
 /**
- * Guardar cambios temporales de forma permanente
+ * Aplicar un cambio temporal a un producto (actualizar vista)
  * @param {string} categoria - Categoría del producto
- * @param {number} productoId - ID del producto modificado
- * @returns {Promise<Object>} - Resultado de la operación
+ * @param {number} productoId - ID del producto
+ * @param {Array} productos - Lista de productos a actualizar
+ * @returns {Array} - Lista actualizada con cambios temporales aplicados
  */
-export async function confirmarCambiosPermanentes(categoria, productoId) {
-    try {
-        // Obtiene cambios temporales
-        const claveTemporal = `menu_temp_${categoria}_${productoId}`;
-        const cambiosTemp = obtenerLocal(claveTemporal);
+export function aplicarCambiosTemporales(categoria, productos) {
+    if (!productos || !Array.isArray(productos)) return productos;
+    
+    // Copia para no modificar el original
+    const productosActualizados = [...productos];
+    
+    productosActualizados.forEach((producto, index) => {
+        // Buscar cambios temporales para este producto
+        const claveTemporal = `menu_temp_${categoria}_${producto.id}`;
+        const cambiosTemporal = obtenerLocal(claveTemporal);
         
-        if (!cambiosTemp) {
-            return {
-                success: false, 
-                error: 'No hay cambios temporales para confirmar'
-            };
-        }
-        
-        // Extraer solo los datos relevantes del producto (eliminar metadatos)
-        const { timestamp, dispositivo_id, ...datosPermanentes } = cambiosTemp;
-        
-        // Actualiza la tabla principal
-        const { error: errorUpdate } = await supabase
-            .from(categoria)
-            .update(datosPermanentes)
-            .eq('id', productoId);
+        if (cambiosTemporal) {
+            // Aplicar cambios temporales
+            if (cambiosTemporal.nombre) producto.nombre = cambiosTemporal.nombre;
+            if (cambiosTemporal.precio) producto.precio = cambiosTemporal.precio;
+            if (cambiosTemporal.descripcion) producto.descripcion = cambiosTemporal.descripcion;
+            if (cambiosTemporal.disponible !== undefined) producto.disponible = cambiosTemporal.disponible;
+            if (cambiosTemporal.destacado !== undefined) producto.destacado = cambiosTemporal.destacado;
             
-        if (errorUpdate) throw errorUpdate;
-        
-        // Elimina de menu_temporal
-        const { error: errorDelete } = await supabase
-            .from('menu_temporal')
-            .delete()
-            .match({ categoria, producto_id: productoId });
-            
-        if (errorDelete) {
-            console.warn('No se pudo eliminar de menu_temporal, continuando:', errorDelete);
-        }
-        
-        // Elimina de localStorage
-        localStorage.removeItem(claveTemporal);
-        
-        return {
-            success: true,
-            message: 'Cambios guardados permanentemente'
-        };
-    } catch (error) {
-        console.error('Error al confirmar cambios permanentes:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-}
-
-/**
- * Sincronizar todos los cambios temporales pendientes desde localStorage a Supabase
- * @returns {Promise<Object>} - Resultados de la sincronización
- */
-export async function sincronizarTodosLosCambiosTemporales() {
-    try {
-        const cambiosPendientes = [];
-        // Buscar todas las claves que comienzan con "menu_temp_"
-        for (let i = 0; i < localStorage.length; i++) {
-            const clave = localStorage.key(i);
-            if (clave && clave.startsWith('menu_temp_')) {
-                // Extraer categoría y producto_id del nombre de la clave
-                const [, , categoria, productoId] = clave.split('_');
-                if (categoria && productoId) {
-                    cambiosPendientes.push({
-                        categoria,
-                        producto_id: parseInt(productoId),
-                        cambios: obtenerLocal(clave)
-                    });
-                }
+            // Si el producto está marcado como no disponible, añadir indicador visual
+            if (cambiosTemporal.disponible === false) {
+                producto.noDisponible = true;
             }
         }
-
-        if (cambiosPendientes.length === 0) {
-            return { success: true, mensaje: 'No hay cambios pendientes' };
-        }
-
-        // Formatear para inserción en Supabase
-        const registrosParaInsertar = cambiosPendientes.map(item => ({
-            categoria: item.categoria,
-            producto_id: item.producto_id,
-            cambios: item.cambios,
-            updated_at: new Date().toISOString(),
-            dispositivo_id: obtenerLocal('dispositivo_id') || 'unknown'
-        }));
-
-        // Insertar en lote
-        const { error } = await supabase
-            .from('menu_temporal')
-            .upsert(registrosParaInsertar);
-
-        if (error) throw error;
-
-        // Actualizar timestamp del último sync
-        guardarLocal('ultimo_sync_temporal', new Date().toISOString());
-
-        return {
-            success: true,
-            mensaje: `${cambiosPendientes.length} cambios sincronizados`
-        };
-    } catch (error) {
-        console.error('Error al sincronizar todos los cambios temporales:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
+    });
+    
+    return productosActualizados;
 }
