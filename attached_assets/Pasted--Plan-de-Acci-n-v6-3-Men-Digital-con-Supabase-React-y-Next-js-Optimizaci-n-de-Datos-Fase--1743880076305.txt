@@ -1,0 +1,60 @@
+📌 Plan de Acción v6.3 - Menú Digital con Supabase, React y Next.js + Optimización de Datos
+🔹 Fase 1: Configuración Inicial
+📂 Estructura de archivos en Replit con React y Next.js
+
+plaintext
+src/  
+├── core/                  # Lógica de negocio  
+│   ├── entities/          # Estructuras de datos (Cocteles, Cervezas)  
+│   ├── use-cases/         # Funciones clave (agregar a orden, estadísticas)  
+│   └── ports/             # Interfaces para conectar frontend y backend  
+├── infra/                 # Implementaciones específicas  
+│   ├── supabase/          # Conexión a BD Supabase  
+│   ├── localstore/        # Manejo de almacenamiento local  
+│   └── auth/              # Autenticación de administradores  
+├── ui/                    # Capa visual con React  
+│   ├── components/        # Botones, tarjetas, tablas  
+│   ├── pages/             # Estructura de cada sección del menú  
+│   ├── styles/            # CSS optimizado para tablets  
+│   └── assets/            # Imágenes y videos  
+├── public/                # Archivos estáticos  
+├── tests/                 # Pruebas y depuración  
+└── package.json           # Configuración de dependencias  
+📌 Tecnologías clave: ✅ React para construir la interfaz interactiva de la aplicación. ✅ Next.js para optimizar el rendimiento y la navegación entre páginas. ✅ Supabase para almacenar datos (productos, videos, estadísticas).
+
+🔹 Fase 2: Sincronización de LocalStorage con Supabase
+📌 Problema resuelto:
+
+Los cambios en LocalStorage no se sincronizaban entre dispositivos.
+
+Los administradores solo veían cambios en su propia tablet, sin reflejo en la base de datos.
+
+✅ Solución implementada: ✔ Crear una tabla menu_temporal en Supabase que almacene cambios realizados en tablets. ✔ Cada sesión de administrador verificará si hay cambios en menu_temporal y actualizará la interfaz. ✔ Se añadirá una columna updated_at TIMESTAMP DEFAULT now() para sincronización inteligente. ✔ Los cambios permanentes se enviarán a menu_final, eliminando menu_temporal.
+
+💡 Ejemplo de flujo: 1️⃣ Un admin modifica el menú en la tablet → Se guarda en LocalStorage y menu_temporal. 2️⃣ Otro admin inicia sesión en otra tablet → La app verifica menu_temporal y actualiza el menú local. 3️⃣ Si el cambio es definitivo, se guarda en menu_final y menu_temporal se borra.
+
+🔹 Fase 3: Interfaz y Funcionalidad Principal
+📌 Características clave: ✅ Menú digital adaptado para tablets en el restaurante. ✅ Código QR para que clientes exploren desde móviles (sin carrito). ✅ Videos de productos almacenados en Supabase, mostrados en ventana modal. ✅ Gestión de variantes (ej. tamaño de cerveza) con botones de selección. ✅ Optimización visual con Next.js para carga rápida en navegadores modernos.
+
+🔹 Fase 4: Implementación del Carrito de Compras
+📌 Características: ✅ Sección fija en la barra lateral en tablets (no en móviles). ✅ Estado de React para manejar el carrito de forma fluida. ✅ Guardado de pedidos en LocalStorage para estadísticas. ✅ Opciones de eliminar productos antes de confirmar la orden.
+
+🔹 Fase 5: Optimización de Estadísticas con Vistas Materializadas
+📌 Problema resuelto:
+
+Consultar grandes volúmenes de datos en Supabase puede ser lento cuando hay miles de registros.
+
+Las estadísticas semanales/mensuales requieren cálculos repetidos.
+
+✅ Solución implementada: ✔ Usar vistas materializadas para almacenar los resultados de consultas pesadas. ✔ La vista materializada se actualizará una vez al día (REFRESH MATERIALIZED VIEW). ✔ Se agregará índices en las columnas más consultadas (CREATE INDEX ON estadisticas).
+
+💡 Ejemplo de uso: ✔ En lugar de calcular ventas cada vez, la app consultará la vista materializada preactualizada. ✔ Los reportes semanales/mensuales se cargarán más rápido, sin procesar datos desde cero. ✔ Cuando el tráfico crezca, se podrá aumentar la frecuencia de actualización.
+
+🔹 Fase 6: Pruebas y Optimización en Replit/GitHub
+🛠 Estrategia de desarrollo: ✅ React DevTools y Chrome DevTools para depuración avanzada. ✅ Mensajes de error en interfaz para facilitar solución de problemas. ✅ Código modular para pruebas en Replit (máx. 2 horas por sesión). ✅ Migración de código definitivo a GitHub para mayor estabilidad.
+
+🔹 Fase 7: Escalabilidad Futura y Mejoras
+🚀 Mejoras previstas: ✅ Autenticación de Administradores con Supabase Auth. ✅ Código modular para integrar nuevas funciones en el futuro. ✅ Compatibilidad con Chrome y Safari modernos (sin soporte para IE). ✅ Animaciones suaves (fade-in, slide-down) para mejorar la experiencia.
+
+📌 Orden de Desarrollo
+🔹 Paso 1: Crear estructura de React/Next.js en Replit. 🔹 Paso 2: Implementar interfaz funcional de Coctelería y Refrescos con Supabase. 🔹 Paso 3: Agregar carrito en tablets con estado de React. 🔹 Paso 4: Implementar sincronización inteligente con menu_temporal. 🔹 Paso 5: Optimizar estadísticas con vistas materializadas. 🔹 Paso 6: Configurar autenticación y administración de contenido. 🔹 Paso 7: Optimizar código en GitHub y mejorar escalabilidad.
