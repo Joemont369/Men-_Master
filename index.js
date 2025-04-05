@@ -1,19 +1,32 @@
+// Cargar variables de entorno
+require('dotenv').config();
 
 const express = require('express');
 const next = require('next');
-const dotenv = require('dotenv');
-
-// Cargar variables de entorno
-dotenv.config();
+const path = require('path');
 
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev, dir: './src' });
+const app = next({ dev });
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
+const PORT = process.env.PORT || 3000;
+
+app.prepare()
+  .then(() => {
     const server = express();
-    
-    // API Routes
+
+    // Servir archivos estáticos
+    server.use(express.static(path.join(__dirname, 'public')));
+
+    // API para verificar estado de sincronización
+    server.get('/api/sync-status', (req, res) => {
+      res.json({
+        online: true,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // API Routes from original code (re-integrated)
     // Obtener órdenes
     server.get('/api/ordenes', async (req, res) => {
         try {
@@ -59,14 +72,18 @@ app.prepare().then(() => {
         }
     });
 
+
     // Manejar todas las demás rutas con Next.js
     server.all('*', (req, res) => {
-        return handle(req, res);
+      return handle(req, res);
     });
 
-    const PORT = process.env.PORT || 3000;
     server.listen(PORT, '0.0.0.0', (err) => {
-        if (err) throw err;
-        console.log(`> Servidor listo en http://0.0.0.0:${PORT}`);
+      if (err) throw err;
+      console.log(`> Servidor listo en http://0.0.0.0:${PORT}`);
     });
-});
+  })
+  .catch((ex) => {
+    console.error(ex.stack);
+    process.exit(1);
+  });

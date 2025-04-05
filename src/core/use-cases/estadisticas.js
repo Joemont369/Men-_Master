@@ -5,17 +5,35 @@ import { obtenerOrdenes } from '../ports/frontendAPI';
  * @returns {Object} - Datos procesados
  */
 export async function obtenerEstadisticas() {
-    const ordenes = await obtenerOrdenes();
-    if (!ordenes || ordenes.length === 0) return { totalVentas: 0, productosMasVendidos: [] };
+    // Obtener órdenes de Supabase
+    const ordenesSupa = await obtenerOrdenes();
+
+    // Obtener órdenes locales
+    const ordenesLocales = obtenerLocal('ordenes_locales') || [];
+
+    // Combinar órdenes para análisis
+    const ordenes = [...ordenesSupa, ...ordenesLocales];
+
+    if (!ordenes || ordenes.length === 0) {
+        return { totalVentas: 0, productosMasVendidos: [] };
+    }
 
     // Procesar datos de ventas
     let totalVentas = 0;
     const conteoProductos = {};
 
     ordenes.forEach(orden => {
-        totalVentas += orden.total;
-        orden.productos.forEach(producto => {
-            conteoProductos[producto] = (conteoProductos[producto] || 0) + 1;
+        totalVentas += orden.total || 0;
+
+        // Procesar los items (pueden estar en items o productos según la implementación)
+        const productosLista = orden.items || orden.productos || [];
+
+        productosLista.forEach(producto => {
+            const nombreProducto = typeof producto === 'string'
+                ? producto
+                : (producto.nombre || 'Producto sin nombre');
+
+            conteoProductos[nombreProducto] = (conteoProductos[nombreProducto] || 0) + 1;
         });
     });
 
@@ -32,11 +50,31 @@ import { supabase } from '../../infra/supabase/supabaseClient';
 import { obtenerLocal } from '../../infra/localstore/storage';
 
 /**
+ * Obtener órdenes desde Supabase
+ * @returns {Array} - Lista de órdenes
+ */
+export async function obtenerOrdenesSupabase() {
+    try {
+        const { data, error } = await supabase
+            .from('ordenes')
+            .select('*');
+
+        if (error) throw error;
+
+        return data || [];
+    } catch (error) {
+        console.error('Error al obtener órdenes:', error);
+        return [];
+    }
+}
+
+
+/**
  * Obtener estadísticas de ventas desde la vista materializada
  * @param {string} periodo - Periodo de tiempo ('dia', 'semana', 'mes')
  * @returns {Array} - Datos estadísticos
  */
-export async function obtenerEstadisticas(periodo = 'semana') {
+export async function obtenerEstadisticasSupabase(periodo = 'semana') {
   try {
     const { data, error } = await supabase
       .from('vista_estadisticas')
@@ -111,6 +149,32 @@ function obtenerEstadisticasLocales(periodo) {
     cantidad_productos: datos.cantidad,
     periodo
   }));
+}
+
+/**
+ * Sincronizar estadísticas locales con Supabase
+ * @returns {boolean} - true si la sincronización fue exitosa
+ */
+export async function sincronizarEstadisticasLocales() {
+    try {
+        const ordenesLocales = obtenerLocal('ordenes_locales') || [];
+        if (ordenesLocales.length === 0) return true;
+
+        // Enviar órdenes locales a Supabase en lote
+        const { error } = await supabase
+            .from('ordenes')
+            .insert(ordenesLocales);
+
+        if (error) throw error;
+
+        // Limpiar órdenes locales después de sincronizar
+        localStorage.removeItem('ordenes_locales');
+
+        return true;
+    } catch (error) {
+        console.error('Error al sincronizar estadísticas locales:', error);
+        return false;
+    }
 }
 
 /**
